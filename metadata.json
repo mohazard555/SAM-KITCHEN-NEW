@@ -1,0 +1,5 @@
+{
+  "name": "Sam Kitchen - AI Recipe Generator",
+  "description": "An AI-powered recipe generator that creates delicious recipes in Arabic based on the ingredients you have, your preferred cuisine, meal type, and dietary needs.",
+  "requestFramePermissions": []
+}
