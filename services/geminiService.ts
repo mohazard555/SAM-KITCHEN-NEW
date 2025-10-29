@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { FormData, Recipe } from '../types';
 
@@ -58,6 +57,14 @@ const buildPrompt = (formData: FormData): string => {
   return prompt;
 };
 
+const extractJson = (text: string): string => {
+  const match = text.match(/```(json)?\s*([\s\S]*?)\s*```/);
+  if (match && match[2]) {
+    return match[2];
+  }
+  return text;
+};
+
 export const generateRecipe = async (formData: FormData): Promise<Recipe> => {
   if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable not set");
@@ -65,6 +72,10 @@ export const generateRecipe = async (formData: FormData): Promise<Recipe> => {
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = buildPrompt(formData);
+
+  // FIX: Declare rawText outside the try block to make it accessible in the catch block.
+  // This resolves a scope error where `response.text` was used in the catch block but was not available.
+  let rawText = '';
 
   try {
     const response = await ai.models.generateContent({
@@ -77,11 +88,15 @@ export const generateRecipe = async (formData: FormData): Promise<Recipe> => {
       },
     });
 
-    const text = response.text.trim();
-    const recipe = JSON.parse(text) as Recipe;
+    rawText = response.text.trim();
+    const jsonText = extractJson(rawText);
+    const recipe = JSON.parse(jsonText) as Recipe;
     return recipe;
   } catch (error) {
     console.error("Error calling Gemini API:", error);
+    if (error instanceof SyntaxError) {
+       console.error("Failed to parse JSON from API response. Raw text:", rawText);
+    }
     throw new Error("Failed to generate recipe from API.");
   }
 };

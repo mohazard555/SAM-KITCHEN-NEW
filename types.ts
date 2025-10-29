@@ -1,4 +1,10 @@
 
+export interface Advertisement {
+  imageUrl: string;
+  text: string;
+  linkUrl: string;
+}
+
 export interface FormData {
   ingredients: string;
   cuisine: string;

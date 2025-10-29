@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { generateRecipe } from './services/geminiService';
-import type { Recipe, FormData } from './types';
+import type { Recipe, FormData, Advertisement } from './types';
 import { CUISINE_TYPES, MEAL_TYPES, DIETARY_OPTIONS } from './constants';
 import { settings } from './settings';
 import RecipeCard from './components/RecipeCard';
 import LoadingSpinner from './components/LoadingSpinner';
 import AdminLoginModal from './components/AdminLoginModal';
 import SubscriptionPrompt from './components/SubscriptionPrompt';
+import AdminSettings from './components/AdminSettings';
 
 const App: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
@@ -19,6 +20,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [appSettings, setAppSettings] = useState(settings);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -28,6 +30,22 @@ const App: React.FC = () => {
     // Check subscription status on initial load
     const subscribed = localStorage.getItem('isSubscribed') === 'true';
     setIsSubscribed(subscribed);
+
+    // Load app settings from local storage
+    const savedSettingsJSON = localStorage.getItem('appSettings');
+    if (savedSettingsJSON) {
+        try {
+            const savedSettings = JSON.parse(savedSettingsJSON);
+            setAppSettings(prev => ({
+                ...prev,
+                subscriptionMessage: savedSettings.subscriptionMessage || prev.subscriptionMessage,
+                subscriptionChannelLink: savedSettings.subscriptionChannelLink || prev.subscriptionChannelLink,
+                advertisements: savedSettings.advertisements || prev.advertisements,
+            }));
+        } catch (e) {
+            console.error("Failed to parse settings from localStorage", e);
+        }
+    }
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -51,6 +69,21 @@ const App: React.FC = () => {
     } else {
       alert('اسم المستخدم أو كلمة المرور غير صحيحة');
     }
+  };
+
+  const handleLogout = () => {
+    setIsAdminLoggedIn(false);
+  };
+
+  const handleUpdateSettings = (newSettings: { 
+    subscriptionMessage: string, 
+    subscriptionChannelLink: string,
+    advertisements: Advertisement[]
+  }) => {
+    const updatedAppSettings = { ...appSettings, ...newSettings };
+    setAppSettings(updatedAppSettings);
+    localStorage.setItem('appSettings', JSON.stringify(updatedAppSettings));
+    alert('تم حفظ الإعدادات بنجاح!');
   };
 
   const handleSubscribe = () => {
@@ -95,15 +128,25 @@ const App: React.FC = () => {
           <div className="text-3xl font-bold">
             sam <span className="text-red-500">kitchen</span>
           </div>
-          <button 
-            onClick={() => setIsAdminModalOpen(true)}
-            className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-          >
-            {isAdminLoggedIn ? 'أهلاً أيها المدير' : 'دخول الأدمن'}
-          </button>
+          {!isAdminLoggedIn && (
+            <button 
+              onClick={() => setIsAdminModalOpen(true)}
+              className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+            >
+              دخول الأدمن
+            </button>
+          )}
         </header>
 
         <main>
+          {isAdminLoggedIn && (
+            <AdminSettings
+              settings={appSettings}
+              onSave={handleUpdateSettings}
+              onLogout={handleLogout}
+            />
+          )}
+
           <p className="text-center text-slate-300 mb-8 text-lg">
             حوّل مكوناتك المتبقية إلى وجبة لذيذة. فقط أخبرنا بما لديك!
           </p>
@@ -194,14 +237,18 @@ const App: React.FC = () => {
             </div>
           )}
 
-          <div className="mt-12 bg-slate-800 p-6 rounded-2xl shadow-lg">
-             <div className="relative">
-                <img src="https://picsum.photos/800/250" alt="Delicious food" className="w-full h-48 object-cover rounded-lg"/>
-                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
-                    <p className="text-white text-xl font-bold text-center px-4">اكتشف عالماً من النكهات. انقر هنا لتصفح أحدث معدات المطبخ.</p>
+          {appSettings.advertisements.map((ad, index) => (
+            <div key={index} className="mt-12 bg-slate-800 p-6 rounded-2xl shadow-lg">
+              <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="block">
+                <div className="relative group">
+                  <img src={ad.imageUrl} alt={ad.text} className="w-full h-48 object-cover rounded-lg"/>
+                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg group-hover:bg-opacity-60 transition-all">
+                      <p className="text-white text-xl font-bold text-center px-4">{ad.text}</p>
+                  </div>
                 </div>
-             </div>
-          </div>
+              </a>
+            </div>
+          ))}
         </main>
         
         <footer className="text-center text-slate-500 mt-8 text-sm">
@@ -211,8 +258,8 @@ const App: React.FC = () => {
       <SubscriptionPrompt
         isOpen={isSubscriptionModalOpen}
         onClose={() => setIsSubscriptionModalOpen(false)}
-        message={settings.subscriptionMessage}
-        link={settings.subscriptionChannelLink}
+        message={appSettings.subscriptionMessage}
+        link={appSettings.subscriptionChannelLink}
         onSubscribe={handleSubscribe}
       />
       <AdminLoginModal 
