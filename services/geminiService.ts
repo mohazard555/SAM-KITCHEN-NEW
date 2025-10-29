@@ -67,7 +67,7 @@ const extractJson = (text: string): string => {
 
 export const generateRecipe = async (formData: FormData): Promise<Recipe> => {
   if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
+    throw new Error("لم يتم تعيين مفتاح الواجهة البرمجية (API Key). يرجى التأكد من تكوين متغيرات البيئة بشكل صحيح.");
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
