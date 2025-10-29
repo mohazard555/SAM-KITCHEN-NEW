@@ -73,8 +73,6 @@ export const generateRecipe = async (formData: FormData): Promise<Recipe> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = buildPrompt(formData);
 
-  // FIX: Declare rawText outside the try block to make it accessible in the catch block.
-  // This resolves a scope error where `response.text` was used in the catch block but was not available.
   let rawText = '';
 
   try {
@@ -96,7 +94,13 @@ export const generateRecipe = async (formData: FormData): Promise<Recipe> => {
     console.error("Error calling Gemini API:", error);
     if (error instanceof SyntaxError) {
        console.error("Failed to parse JSON from API response. Raw text:", rawText);
+       throw new Error("حدث خطأ أثناء معالجة رد الذكاء الاصطناعي. قد تكون البيانات غير صالحة.");
     }
+    
+    if (error instanceof Error) {
+        throw new Error(`فشل إنشاء الوصفة. السبب: ${error.message}`);
+    }
+
     throw new Error("Failed to generate recipe from API.");
   }
 };

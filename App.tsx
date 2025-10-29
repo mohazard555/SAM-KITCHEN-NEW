@@ -108,7 +108,7 @@ const App: React.FC = () => {
       const generatedRecipe = await generateRecipe(formData);
       setRecipe(generatedRecipe);
     } catch (err) {
-      setError('حدث خطأ أثناء إنشاء الوصفة. يرجى المحاولة مرة أخرى.');
+      setError(err instanceof Error ? err.message : 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
       console.error(err);
     } finally {
       setIsLoading(false);
