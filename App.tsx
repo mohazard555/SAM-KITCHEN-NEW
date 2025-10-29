@@ -22,6 +22,7 @@ const App: React.FC = () => {
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
 
   useEffect(() => {
     // Check subscription status on initial load
@@ -61,6 +62,11 @@ const App: React.FC = () => {
     e.preventDefault();
     if (isLoading || !formData.ingredients) return;
 
+    if (!isAdminLoggedIn && !isSubscribed) {
+      setIsSubscriptionModalOpen(true);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setRecipe(null);
@@ -74,15 +80,13 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [formData, isLoading]);
+  }, [formData, isLoading, isSubscribed, isAdminLoggedIn]);
   
   const MagicWandIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
       <path d="M11.954 1.205a.75.75 0 01.595.148l3 3a.75.75 0 01-.53 1.295H13.5a.75.75 0 00-.75.75v1.5a.75.75 0 00.75.75h1.504a.75.75 0 01.53 1.295l-3 3a.75.75 0 01-1.13 0l-3-3a.75.75 0 01.53-1.295H10.5a.75.75 0 00.75-.75v-1.5a.75.75 0 00-.75-.75H8.996a.75.75 0 01-.53-1.295l3-3a.75.75 0 01.595-.148zM5.36 8.36a.75.75 0 00-1.06-1.06l-2.5 2.5a.75.75 0 000 1.06l2.5 2.5a.75.75 0 101.06-1.06L3.31 11H6.5a.75.75 0 000-1.5H3.31l2.05-2.05zM16.69 11.5l2.05 2.05a.75.75 0 01-1.06 1.06l-2.5-2.5a.75.75 0 010-1.06l2.5-2.5a.75.75 0 111.06 1.06L16.69 11H13.5a.75.75 0 010 1.5h3.19z" />
     </svg>
   );
-
-  const canGenerate = isSubscribed || isAdminLoggedIn;
 
   return (
     <div className="bg-slate-900 min-h-screen text-white p-4 sm:p-6 lg:p-8">
@@ -103,14 +107,6 @@ const App: React.FC = () => {
           <p className="text-center text-slate-300 mb-8 text-lg">
             حوّل مكوناتك المتبقية إلى وجبة لذيذة. فقط أخبرنا بما لديك!
           </p>
-
-          {!canGenerate && (
-            <SubscriptionPrompt 
-              message={settings.subscriptionMessage}
-              link={settings.subscriptionChannelLink}
-              onSubscribe={handleSubscribe}
-            />
-          )}
           
           <form onSubmit={handleSubmit} className="bg-slate-800 p-6 sm:p-8 rounded-2xl shadow-lg space-y-6 mt-6">
             <div>
@@ -178,7 +174,7 @@ const App: React.FC = () => {
 
             <button
               type="submit"
-              disabled={isLoading || !formData.ingredients.trim() || !canGenerate}
+              disabled={isLoading || !formData.ingredients.trim()}
               className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold py-4 px-4 rounded-lg text-xl transition-colors flex items-center justify-center gap-3"
             >
               {isLoading ? <LoadingSpinner /> : <MagicWandIcon />}
@@ -212,6 +208,13 @@ const App: React.FC = () => {
           <p>develop mohannad ahmad tel.+963998171954</p>
         </footer>
       </div>
+      <SubscriptionPrompt
+        isOpen={isSubscriptionModalOpen}
+        onClose={() => setIsSubscriptionModalOpen(false)}
+        message={settings.subscriptionMessage}
+        link={settings.subscriptionChannelLink}
+        onSubscribe={handleSubscribe}
+      />
       <AdminLoginModal 
         isOpen={isAdminModalOpen}
         onClose={() => setIsAdminModalOpen(false)}
