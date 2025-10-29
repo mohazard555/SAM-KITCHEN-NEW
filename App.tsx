@@ -1,10 +1,12 @@
-
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { generateRecipe } from './services/geminiService';
 import type { Recipe, FormData } from './types';
 import { CUISINE_TYPES, MEAL_TYPES, DIETARY_OPTIONS } from './constants';
+import { settings } from './settings';
 import RecipeCard from './components/RecipeCard';
 import LoadingSpinner from './components/LoadingSpinner';
+import AdminLoginModal from './components/AdminLoginModal';
+import SubscriptionPrompt from './components/SubscriptionPrompt';
 
 const App: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
@@ -16,6 +18,16 @@ const App: React.FC = () => {
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+
+  useEffect(() => {
+    // Check subscription status on initial load
+    const subscribed = localStorage.getItem('isSubscribed') === 'true';
+    setIsSubscribed(subscribed);
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -29,6 +41,20 @@ const App: React.FC = () => {
         : [...prev.dietaryOptions, option];
       return { ...prev, dietaryOptions: newOptions };
     });
+  };
+  
+  const handleLogin = (username, password) => {
+    if (username === settings.adminUsername && password === settings.adminPassword) {
+      setIsAdminLoggedIn(true);
+      setIsAdminModalOpen(false);
+    } else {
+      alert('اسم المستخدم أو كلمة المرور غير صحيحة');
+    }
+  };
+
+  const handleSubscribe = () => {
+    localStorage.setItem('isSubscribed', 'true');
+    setIsSubscribed(true);
   };
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -56,6 +82,8 @@ const App: React.FC = () => {
     </svg>
   );
 
+  const canGenerate = isSubscribed || isAdminLoggedIn;
+
   return (
     <div className="bg-slate-900 min-h-screen text-white p-4 sm:p-6 lg:p-8">
       <div className="max-w-4xl mx-auto">
@@ -63,8 +91,11 @@ const App: React.FC = () => {
           <div className="text-3xl font-bold">
             sam <span className="text-red-500">kitchen</span>
           </div>
-          <button className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-            دخول الأدمن
+          <button 
+            onClick={() => setIsAdminModalOpen(true)}
+            className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+          >
+            {isAdminLoggedIn ? 'أهلاً أيها المدير' : 'دخول الأدمن'}
           </button>
         </header>
 
@@ -72,8 +103,16 @@ const App: React.FC = () => {
           <p className="text-center text-slate-300 mb-8 text-lg">
             حوّل مكوناتك المتبقية إلى وجبة لذيذة. فقط أخبرنا بما لديك!
           </p>
+
+          {!canGenerate && (
+            <SubscriptionPrompt 
+              message={settings.subscriptionMessage}
+              link={settings.subscriptionChannelLink}
+              onSubscribe={handleSubscribe}
+            />
+          )}
           
-          <form onSubmit={handleSubmit} className="bg-slate-800 p-6 sm:p-8 rounded-2xl shadow-lg space-y-6">
+          <form onSubmit={handleSubmit} className="bg-slate-800 p-6 sm:p-8 rounded-2xl shadow-lg space-y-6 mt-6">
             <div>
               <label htmlFor="ingredients" className="block text-lg font-bold mb-2 text-slate-200">
                 ما هي المكونات المتوفرة لديك؟
@@ -139,8 +178,8 @@ const App: React.FC = () => {
 
             <button
               type="submit"
-              disabled={isLoading || !formData.ingredients.trim()}
-              className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:cursor-not-allowed text-white font-bold py-4 px-4 rounded-lg text-xl transition-colors flex items-center justify-center gap-3"
+              disabled={isLoading || !formData.ingredients.trim() || !canGenerate}
+              className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold py-4 px-4 rounded-lg text-xl transition-colors flex items-center justify-center gap-3"
             >
               {isLoading ? <LoadingSpinner /> : <MagicWandIcon />}
               {isLoading ? 'جاري إنشاء الوصفة...' : 'أنشئ الوصفة'}
@@ -154,7 +193,7 @@ const App: React.FC = () => {
           )}
 
           {recipe && !isLoading && (
-            <div className="mt-8">
+            <div className="mt-8 recipe-print-area">
               <RecipeCard recipe={recipe} />
             </div>
           )}
@@ -173,6 +212,11 @@ const App: React.FC = () => {
           <p>develop mohannad ahmad tel.+963998171954</p>
         </footer>
       </div>
+      <AdminLoginModal 
+        isOpen={isAdminModalOpen}
+        onClose={() => setIsAdminModalOpen(false)}
+        onLogin={handleLogin}
+      />
     </div>
   );
 };
