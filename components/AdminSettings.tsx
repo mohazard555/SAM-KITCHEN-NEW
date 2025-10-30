@@ -52,7 +52,8 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
     }
     setSyncStatus({ loading: true, message: 'جاري جلب الإعدادات من Gist...', isError: false });
     try {
-        const response = await fetch(gistUrl);
+        const urlToFetch = `${gistUrl.split('?')[0]}?cache_bust=${new Date().getTime()}`;
+        const response = await fetch(urlToFetch);
         if (!response.ok) {
             throw new Error(`فشل الطلب: ${response.statusText}`);
         }
@@ -92,6 +93,7 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
         try {
             const url = new URL(gistUrl);
             const pathParts = url.pathname.split('/');
+            // Gist ID is always the 3rd part of the pathname, e.g., /<user>/<gistId>/...
             const gistId = pathParts[2];
             if (!gistId) throw new Error('لا يمكن استخراج Gist ID من الرابط.');
 
@@ -114,12 +116,23 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
                     }
                 })
             });
+            
+            const responseData = await response.json();
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`فشل تحديث Gist: ${errorData.message || response.statusText}`);
+                throw new Error(`فشل تحديث Gist: ${responseData.message || response.statusText}`);
             }
             finalMessage = 'تم حفظ الإعدادات ومزامنتها مع Gist بنجاح!';
+            
+            const newSha = responseData.history?.[0]?.version;
+            if (newSha) {
+                const owner = pathParts[1];
+                const newGistUrl = `https://gist.githubusercontent.com/${owner}/${gistId}/raw/${newSha}/${filename}`;
+                settingsToSave.gistUrl = newGistUrl;
+                setGistUrl(newGistUrl);
+                 finalMessage += ' (تم تحديث الرابط لإصدار جديد لتجاوز التخزين المؤقت)';
+            }
+
         } catch (error) {
             console.error("Failed to update Gist:", error);
             const errorMessage = error instanceof Error ? error.message : String(error);
