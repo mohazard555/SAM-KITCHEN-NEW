@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Advertisement } from '../types';
 
 interface AdminSettingsProps {
@@ -31,6 +31,7 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
   const [newPassword, setNewPassword] = useState('');
   const [gistUrl, setGistUrl] = useState(settings.gistUrl);
   const [githubToken, setGithubToken] = useState(settings.githubToken);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMessage(settings.subscriptionMessage);
@@ -82,6 +83,73 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
   const handleDeleteAd = (index: number) => {
     const newAds = ads.filter((_, i) => i !== index);
     setAds(newAds);
+  };
+  
+  const handleExport = () => {
+    const passwordToExport = newPassword.trim() === '' ? settings.adminPassword : newPassword;
+    const settingsToExport = {
+        subscriptionMessage: message,
+        subscriptionChannelLink: link,
+        advertisements: ads,
+        adminUsername: newUsername,
+        adminPassword: passwordToExport,
+        gistUrl: gistUrl,
+        githubToken: githubToken,
+    };
+
+    const dataStr = JSON.stringify(settingsToExport, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const exportFileDefaultName = 'sam-kitchen-settings.json';
+
+    const linkElement = document.createElement('a');
+    linkElement.href = url;
+    linkElement.download = exportFileDefaultName;
+    document.body.appendChild(linkElement);
+    linkElement.click();
+    document.body.removeChild(linkElement);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileReader = new FileReader();
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    fileReader.readAsText(file, "UTF-8");
+    fileReader.onload = e => {
+      const content = e.target?.result;
+      if (typeof content === 'string') {
+        try {
+          const importedSettings = JSON.parse(content);
+          
+          if (importedSettings.subscriptionMessage) setMessage(importedSettings.subscriptionMessage);
+          if (importedSettings.subscriptionChannelLink) setLink(importedSettings.subscriptionChannelLink);
+          if (Array.isArray(importedSettings.advertisements)) setAds(importedSettings.advertisements);
+          if (importedSettings.adminUsername) setNewUsername(importedSettings.adminUsername);
+          if (importedSettings.adminPassword) setNewPassword(importedSettings.adminPassword);
+          if (importedSettings.gistUrl !== undefined) setGistUrl(importedSettings.gistUrl);
+          if (importedSettings.githubToken !== undefined) setGithubToken(importedSettings.githubToken);
+
+          alert('تم استيراد الإعدادات بنجاح! الرجاء المراجعة والضغط على "حفظ كل الإعدادات" لتطبيقها.');
+
+        } catch (error) {
+          console.error("Error parsing imported JSON:", error);
+          alert('فشل في قراءة الملف. يرجى التأكد من أنه ملف JSON صالح.');
+        }
+      }
+    };
+    if (importFileRef.current) {
+      importFileRef.current.value = '';
+    }
+  };
+
+  const triggerImport = () => {
+    importFileRef.current?.click();
   };
 
   return (
@@ -195,6 +263,37 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
                 style={{textAlign: 'left'}}
               />
             </div>
+        </fieldset>
+        
+        <fieldset className="space-y-4 border border-slate-700 p-4 rounded-lg">
+          <legend className="text-xl font-bold text-slate-200 px-2">إدارة البيانات</legend>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button
+                type="button"
+                onClick={triggerImport}
+                className="w-full bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+            >
+                استيراد الإعدادات (JSON)
+            </button>
+            <input
+                type="file"
+                ref={importFileRef}
+                onChange={handleImport}
+                className="hidden"
+                accept="application/json"
+            />
+            <button
+                type="button"
+                onClick={handleExport}
+                className="w-full bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+            >
+                تصدير الإعدادات (JSON)
+            </button>
+          </div>
+          <p className="text-slate-400 text-sm mt-2">
+            يمكنك تصدير إعداداتك الحالية كملف احتياطي، أو استيراد إعدادات من ملف.
+            بعد الاستيراد، يجب عليك الضغط على "حفظ كل الإعدادات" لتطبيق التغييرات.
+          </p>
         </fieldset>
 
         <fieldset className="space-y-4 border border-slate-700 p-4 rounded-lg">
