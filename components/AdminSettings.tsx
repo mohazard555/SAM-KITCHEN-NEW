@@ -8,13 +8,17 @@ interface AdminSettingsProps {
     advertisements: Advertisement[];
     adminUsername: string;
     adminPassword: string;
+    gistUrl: string;
+    githubToken: string;
   };
   onSave: (newSettings: { 
     subscriptionMessage: string, 
     subscriptionChannelLink: string,
     advertisements: Advertisement[],
     adminUsername: string,
-    adminPassword: string
+    adminPassword: string,
+    gistUrl: string,
+    githubToken: string,
   }) => void;
   onLogout: () => void;
 }
@@ -25,6 +29,8 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
   const [ads, setAds] = useState<Advertisement[]>(settings.advertisements);
   const [newUsername, setNewUsername] = useState(settings.adminUsername);
   const [newPassword, setNewPassword] = useState('');
+  const [gistUrl, setGistUrl] = useState(settings.gistUrl);
+  const [githubToken, setGithubToken] = useState(settings.githubToken);
 
   useEffect(() => {
     setMessage(settings.subscriptionMessage);
@@ -32,6 +38,8 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
     setAds(settings.advertisements || []); 
     setNewUsername(settings.adminUsername);
     setNewPassword(''); // Reset password field for security
+    setGistUrl(settings.gistUrl || '');
+    setGithubToken(settings.githubToken || '');
   }, [settings]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -42,7 +50,9 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
         subscriptionChannelLink: link, 
         advertisements: ads,
         adminUsername: newUsername,
-        adminPassword: passwordToSave
+        adminPassword: passwordToSave,
+        gistUrl: gistUrl,
+        githubToken: githubToken,
     });
   };
   
@@ -143,6 +153,48 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
               required
             />
           </div>
+        </fieldset>
+        
+        <fieldset className="space-y-4 border border-slate-700 p-4 rounded-lg">
+          <legend className="text-xl font-bold text-slate-200 px-2">المزامنة عبر الإنترنت</legend>
+            <div className="text-slate-300 text-sm space-y-2 leading-relaxed">
+              <p className="font-bold">لتمكين المزامنة عبر الإنترنت:</p>
+              <ol className="list-decimal list-inside pr-4 space-y-1">
+                  <li>الصق Gist Raw URL في الحقل أدناه ليكون مصدر بيانات الموقع.</li>
+                  <li>أنشئ Personal Access Token (Classic) من إعدادات GitHub مع صلاحية <code>gist</code> فقط.</li>
+                  <li>الصق الـ Token في الحقل الثاني لتمكين الحفظ والمزامنة.</li>
+              </ol>
+            </div>
+            <div>
+              <label htmlFor="gistUrl" className="block text-lg font-bold mb-2 text-slate-200">
+                رابط Gist Raw للمزامنة
+              </label>
+              <input
+                type="url"
+                id="gistUrl"
+                value={gistUrl}
+                onChange={(e) => setGistUrl(e.target.value)}
+                className="w-full bg-slate-700 text-white p-3 rounded-lg border-2 border-slate-600 focus:border-red-500 focus:ring-red-500 transition-colors"
+                placeholder="https://gist.githubusercontent.com/username/..."
+                dir="ltr"
+                style={{textAlign: 'left'}}
+              />
+            </div>
+            <div>
+              <label htmlFor="githubToken" className="block text-lg font-bold mb-2 text-slate-200">
+                GitHub Personal Access Token
+              </label>
+              <input
+                type="password"
+                id="githubToken"
+                value={githubToken}
+                onChange={(e) => setGithubToken(e.target.value)}
+                className="w-full bg-slate-700 text-white p-3 rounded-lg border-2 border-slate-600 focus:border-red-500 focus:ring-red-500 transition-colors"
+                placeholder="••••••••••••••••••••••••••••••••••••"
+                dir="ltr"
+                style={{textAlign: 'left'}}
+              />
+            </div>
         </fieldset>
 
         <fieldset className="space-y-4 border border-slate-700 p-4 rounded-lg">

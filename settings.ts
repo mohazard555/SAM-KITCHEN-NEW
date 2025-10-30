@@ -9,5 +9,7 @@ export const settings = {
       text: "اكتشف عالماً من النكهات. انقر هنا لتصفح أحدث معدات المطبخ.",
       linkUrl: "#"
     }
-  ]
+  ],
+  gistUrl: "",
+  githubToken: ""
 };

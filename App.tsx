@@ -38,9 +38,7 @@ const App: React.FC = () => {
             const savedSettings = JSON.parse(savedSettingsJSON);
             setAppSettings(prev => ({
                 ...prev,
-                subscriptionMessage: savedSettings.subscriptionMessage || prev.subscriptionMessage,
-                subscriptionChannelLink: savedSettings.subscriptionChannelLink || prev.subscriptionChannelLink,
-                advertisements: savedSettings.advertisements || prev.advertisements,
+                ...savedSettings,
             }));
             if (savedSettings.adminUsername) {
                 setAdminUsername(savedSettings.adminUsername);
@@ -86,7 +84,9 @@ const App: React.FC = () => {
     subscriptionChannelLink: string,
     advertisements: Advertisement[],
     adminUsername: string,
-    adminPassword: string
+    adminPassword: string,
+    gistUrl: string,
+    githubToken: string,
   }) => {
     const { adminUsername: newUsername, adminPassword: newPassword, ...otherSettings } = newSettings;
     const updatedAppSettings = { ...appSettings, ...otherSettings };
