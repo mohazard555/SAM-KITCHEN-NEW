@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import type { Recipe } from '../types';
-import 'html2canvas';
 
 // Declare html2canvas as a global variable to satisfy TypeScript,
 // as the UMD module attaches itself to the window object.

@@ -21,17 +21,17 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [appSettings, setAppSettings] = useState(settings);
+  const [adminUsername, setAdminUsername] = useState(settings.adminUsername);
+  const [adminPassword, setAdminPassword] = useState(settings.adminPassword);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
 
   useEffect(() => {
-    // Check subscription status on initial load
     const subscribed = localStorage.getItem('isSubscribed') === 'true';
     setIsSubscribed(subscribed);
 
-    // Load app settings from local storage
     const savedSettingsJSON = localStorage.getItem('appSettings');
     if (savedSettingsJSON) {
         try {
@@ -42,6 +42,12 @@ const App: React.FC = () => {
                 subscriptionChannelLink: savedSettings.subscriptionChannelLink || prev.subscriptionChannelLink,
                 advertisements: savedSettings.advertisements || prev.advertisements,
             }));
+            if (savedSettings.adminUsername) {
+                setAdminUsername(savedSettings.adminUsername);
+            }
+            if (savedSettings.adminPassword) {
+                setAdminPassword(savedSettings.adminPassword);
+            }
         } catch (e) {
             console.error("Failed to parse settings from localStorage", e);
         }
@@ -63,7 +69,7 @@ const App: React.FC = () => {
   };
   
   const handleLogin = (username, password) => {
-    if (username === settings.adminUsername && password === settings.adminPassword) {
+    if (username === adminUsername && password === adminPassword) {
       setIsAdminLoggedIn(true);
       setIsAdminModalOpen(false);
     } else {
@@ -78,11 +84,24 @@ const App: React.FC = () => {
   const handleUpdateSettings = (newSettings: { 
     subscriptionMessage: string, 
     subscriptionChannelLink: string,
-    advertisements: Advertisement[]
+    advertisements: Advertisement[],
+    adminUsername: string,
+    adminPassword: string
   }) => {
-    const updatedAppSettings = { ...appSettings, ...newSettings };
+    const { adminUsername: newUsername, adminPassword: newPassword, ...otherSettings } = newSettings;
+    const updatedAppSettings = { ...appSettings, ...otherSettings };
+    
+    setAdminUsername(newUsername);
+    setAdminPassword(newPassword);
     setAppSettings(updatedAppSettings);
-    localStorage.setItem('appSettings', JSON.stringify(updatedAppSettings));
+
+    const settingsToSave = {
+        ...updatedAppSettings,
+        adminUsername: newUsername,
+        adminPassword: newPassword,
+    };
+
+    localStorage.setItem('appSettings', JSON.stringify(settingsToSave));
     alert('تم حفظ الإعدادات بنجاح!');
   };
 
@@ -113,7 +132,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [formData, isLoading, isSubscribed, isAdminLoggedIn]);
+  }, [formData, isLoading, isSubscribed, isAdminLoggedIn, adminUsername, adminPassword]);
   
   const MagicWandIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -141,7 +160,7 @@ const App: React.FC = () => {
         <main>
           {isAdminLoggedIn && (
             <AdminSettings
-              settings={appSettings}
+              settings={{...appSettings, adminUsername, adminPassword}}
               onSave={handleUpdateSettings}
               onLogout={handleLogout}
             />
@@ -238,16 +257,18 @@ const App: React.FC = () => {
           )}
 
           {appSettings.advertisements.map((ad, index) => (
-            <div key={index} className="mt-12 bg-slate-800 p-6 rounded-2xl shadow-lg">
-              <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="block">
-                <div className="relative group">
-                  <img src={ad.imageUrl} alt={ad.text} className="w-full h-48 object-cover rounded-lg"/>
-                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg group-hover:bg-opacity-60 transition-all">
-                      <p className="text-white text-xl font-bold text-center px-4">{ad.text}</p>
+            ad.imageUrl && ad.linkUrl && ad.text && (
+              <div key={index} className="mt-12 bg-slate-800 p-6 rounded-2xl shadow-lg">
+                <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="block">
+                  <div className="relative group">
+                    <img src={ad.imageUrl} alt={ad.text} className="w-full h-48 object-cover rounded-lg"/>
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg group-hover:bg-opacity-60 transition-all">
+                        <p className="text-white text-xl font-bold text-center px-4">{ad.text}</p>
+                    </div>
                   </div>
-                </div>
-              </a>
-            </div>
+                </a>
+              </div>
+            )
           ))}
         </main>
         
