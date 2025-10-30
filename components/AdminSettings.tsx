@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Advertisement } from '../types';
+import LoadingSpinner from './LoadingSpinner';
 
 interface AdminSettingsProps {
   settings: {
@@ -31,6 +32,7 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
   const [newPassword, setNewPassword] = useState('');
   const [gistUrl, setGistUrl] = useState(settings.gistUrl);
   const [githubToken, setGithubToken] = useState(settings.githubToken);
+  const [syncStatus, setSyncStatus] = useState<{ loading: boolean; message: string; isError: boolean; }>({ loading: false, message: '', isError: false });
   const importFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -43,18 +45,92 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
     setGithubToken(settings.githubToken || '');
   }, [settings]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFetchFromGist = async () => {
+    if (!gistUrl) {
+      setSyncStatus({ loading: false, message: 'الرجاء إدخال رابط Gist أولاً.', isError: true });
+      return;
+    }
+    setSyncStatus({ loading: true, message: 'جاري جلب الإعدادات من Gist...', isError: false });
+    try {
+        const response = await fetch(gistUrl);
+        if (!response.ok) {
+            throw new Error(`فشل الطلب: ${response.statusText}`);
+        }
+        const data = await response.json();
+        
+        if (data.subscriptionMessage) setMessage(data.subscriptionMessage);
+        if (data.subscriptionChannelLink) setLink(data.subscriptionChannelLink);
+        if (Array.isArray(data.advertisements)) setAds(data.advertisements);
+        if (data.adminUsername) setNewUsername(data.adminUsername);
+        if (data.adminPassword) setNewPassword(data.adminPassword);
+
+        setSyncStatus({ loading: false, message: 'تم جلب الإعدادات بنجاح. راجعها ثم اضغط "حفظ" لتطبيقها.', isError: false });
+    } catch (error) {
+        console.error("Failed to fetch from Gist:", error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        setSyncStatus({ loading: false, message: `فشل جلب الإعدادات: ${errorMessage}`, isError: true });
+    }
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSyncStatus({ loading: true, message: 'جاري حفظ الإعدادات...', isError: false });
+    let finalMessage = 'تم حفظ الإعدادات محلياً بنجاح!';
+
     const passwordToSave = newPassword.trim() === '' ? settings.adminPassword : newPassword;
-    onSave({ 
-        subscriptionMessage: message, 
-        subscriptionChannelLink: link, 
+    const settingsToSave = {
+        subscriptionMessage: message,
+        subscriptionChannelLink: link,
         advertisements: ads,
         adminUsername: newUsername,
         adminPassword: passwordToSave,
         gistUrl: gistUrl,
         githubToken: githubToken,
-    });
+    };
+    
+    if (gistUrl && githubToken) {
+        try {
+            const url = new URL(gistUrl);
+            const pathParts = url.pathname.split('/');
+            const gistId = pathParts[2];
+            if (!gistId) throw new Error('لا يمكن استخراج Gist ID من الرابط.');
+
+            const filename = decodeURIComponent(pathParts[pathParts.length - 1]);
+            const apiUrl = `https://api.github.com/gists/${gistId}`;
+
+            const { gistUrl: _g, githubToken: _t, ...settingsForGist } = settingsToSave;
+            
+            const response = await fetch(apiUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `token ${githubToken}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                },
+                body: JSON.stringify({
+                    files: {
+                        [filename]: {
+                            content: JSON.stringify(settingsForGist, null, 2)
+                        }
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`فشل تحديث Gist: ${errorData.message || response.statusText}`);
+            }
+            finalMessage = 'تم حفظ الإعدادات ومزامنتها مع Gist بنجاح!';
+        } catch (error) {
+            console.error("Failed to update Gist:", error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            setSyncStatus({ loading: false, message: `فشل تحديث Gist: ${errorMessage}. تم الحفظ محلياً فقط.`, isError: true });
+            onSave(settingsToSave);
+            return;
+        }
+    }
+    
+    onSave(settingsToSave);
+    setSyncStatus({ loading: false, message: finalMessage, isError: false });
   };
   
   const handleAdTextChange = (index: number, field: 'text' | 'linkUrl', value: string) => {
@@ -237,16 +313,27 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
               <label htmlFor="gistUrl" className="block text-lg font-bold mb-2 text-slate-200">
                 رابط Gist Raw للمزامنة
               </label>
-              <input
-                type="url"
-                id="gistUrl"
-                value={gistUrl}
-                onChange={(e) => setGistUrl(e.target.value)}
-                className="w-full bg-slate-700 text-white p-3 rounded-lg border-2 border-slate-600 focus:border-red-500 focus:ring-red-500 transition-colors"
-                placeholder="https://gist.githubusercontent.com/username/..."
-                dir="ltr"
-                style={{textAlign: 'left'}}
-              />
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  id="gistUrl"
+                  value={gistUrl}
+                  onChange={(e) => setGistUrl(e.target.value)}
+                  className="w-full bg-slate-700 text-white p-3 rounded-lg border-2 border-slate-600 focus:border-red-500 focus:ring-red-500 transition-colors"
+                  placeholder="https://gist.githubusercontent.com/username/..."
+                  dir="ltr"
+                  style={{textAlign: 'left'}}
+                />
+                 <button 
+                    type="button" 
+                    onClick={handleFetchFromGist}
+                    disabled={syncStatus.loading}
+                    className="bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:cursor-wait text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                    title="جلب أحدث الإعدادات من Gist"
+                 >
+                   جلب
+                 </button>
+              </div>
             </div>
             <div>
               <label htmlFor="githubToken" className="block text-lg font-bold mb-2 text-slate-200">
@@ -355,12 +442,21 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ settings, onSave, onLogou
           </button>
         </fieldset>
         
-        <button
-          type="submit"
-          className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg text-xl transition-colors"
-        >
-          حفظ كل الإعدادات
-        </button>
+        <div>
+          <button
+            type="submit"
+            disabled={syncStatus.loading}
+            className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-500 disabled:cursor-wait text-white font-bold py-3 px-4 rounded-lg text-xl transition-colors flex items-center justify-center gap-3"
+          >
+            {syncStatus.loading && <LoadingSpinner />}
+            حفظ كل الإعدادات
+          </button>
+          {syncStatus.message && (
+            <p className={`mt-3 text-center text-sm ${syncStatus.isError ? 'text-red-400' : 'text-green-400'}`}>
+              {syncStatus.message}
+            </p>
+          )}
+        </div>
       </form>
     </div>
   );

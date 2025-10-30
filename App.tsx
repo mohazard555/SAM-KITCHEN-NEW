@@ -32,24 +32,53 @@ const App: React.FC = () => {
     const subscribed = localStorage.getItem('isSubscribed') === 'true';
     setIsSubscribed(subscribed);
 
-    const savedSettingsJSON = localStorage.getItem('appSettings');
-    if (savedSettingsJSON) {
-        try {
-            const savedSettings = JSON.parse(savedSettingsJSON);
-            setAppSettings(prev => ({
-                ...prev,
-                ...savedSettings,
-            }));
-            if (savedSettings.adminUsername) {
-                setAdminUsername(savedSettings.adminUsername);
+    const loadSettings = async () => {
+        let finalSettings = settings; // Start with default settings
+
+        // 1. Try loading from localStorage
+        const savedSettingsJSON = localStorage.getItem('appSettings');
+        if (savedSettingsJSON) {
+            try {
+                const savedSettings = JSON.parse(savedSettingsJSON);
+                finalSettings = { ...finalSettings, ...savedSettings };
+            } catch (e) {
+                console.error("Failed to parse settings from localStorage", e);
             }
-            if (savedSettings.adminPassword) {
-                setAdminPassword(savedSettings.adminPassword);
-            }
-        } catch (e) {
-            console.error("Failed to parse settings from localStorage", e);
         }
-    }
+
+        // 2. If a Gist URL exists, fetch from it and override local settings
+        if (finalSettings.gistUrl) {
+            try {
+                const response = await fetch(finalSettings.gistUrl);
+                if (response.ok) {
+                    const gistSettings = await response.json();
+                    console.log("Fetched settings from Gist successfully.");
+                    // Gist is source of truth for content, localStorage for sync details
+                    finalSettings = { 
+                        ...finalSettings, 
+                        ...gistSettings 
+                    }; 
+                } else {
+                    console.error("Failed to fetch from Gist, using local/default settings.", response.statusText);
+                }
+            } catch (e) {
+                console.error("Error fetching from Gist, using local/default settings.", e);
+            }
+        }
+        
+        // 3. Apply the final settings
+        setAppSettings(finalSettings);
+        if (finalSettings.adminUsername) {
+            setAdminUsername(finalSettings.adminUsername);
+        }
+        if (finalSettings.adminPassword) {
+            setAdminPassword(finalSettings.adminPassword);
+        }
+        // Update localStorage with the latest merged settings
+        localStorage.setItem('appSettings', JSON.stringify(finalSettings));
+    };
+
+    loadSettings();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -102,7 +131,7 @@ const App: React.FC = () => {
     };
 
     localStorage.setItem('appSettings', JSON.stringify(settingsToSave));
-    alert('تم حفظ الإعدادات بنجاح!');
+    // The alert is removed from here to be handled in the AdminSettings component for better UX.
   };
 
   const handleSubscribe = () => {
@@ -132,7 +161,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [formData, isLoading, isSubscribed, isAdminLoggedIn, adminUsername, adminPassword]);
+  }, [formData, isLoading, isSubscribed, isAdminLoggedIn]);
   
   const MagicWandIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
