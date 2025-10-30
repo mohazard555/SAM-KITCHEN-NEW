@@ -50,16 +50,20 @@ const App: React.FC = () => {
         if (finalSettings.gistUrl) {
             try {
                 // Added a cache-busting query parameter to ensure latest settings are always fetched.
-                const gistUrlWithCacheBust = `${finalSettings.gistUrl}?cache_bust=${new Date().getTime()}`;
+                const gistUrlWithCacheBust = `${finalSettings.gistUrl.split('?')[0]}?cache_bust=${new Date().getTime()}`;
                 const response = await fetch(gistUrlWithCacheBust);
                 if (response.ok) {
                     const gistSettings = await response.json();
                     console.log("Fetched settings from Gist successfully.");
-                    // Gist is source of truth for content, localStorage for sync details
-                    finalSettings = { 
-                        ...finalSettings, 
-                        ...gistSettings 
-                    }; 
+                    // Gist is source of truth for content, localStorage for sync details.
+                    // We must preserve the sync credentials from the locally loaded settings.
+                    finalSettings = {
+                        // Keep gistUrl and githubToken from what was loaded from localStorage
+                        gistUrl: finalSettings.gistUrl,
+                        githubToken: finalSettings.githubToken,
+                        // Overwrite the rest of the settings with what came from the Gist
+                        ...gistSettings,
+                    };
                 } else {
                     console.error("Failed to fetch from Gist, using local/default settings.", response.statusText);
                 }
