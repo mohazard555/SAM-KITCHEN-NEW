@@ -10,6 +10,6 @@ export const settings = {
       linkUrl: "#"
     }
   ],
-  gistUrl: "",
+  gistUrl: "https://gist.githubusercontent.com/mohazard555/1d68ed5c5288f623b3f1e0b340a586a3/raw/9290c5465c93e3e2ccf679224d2b40a971a05436/sam%2520kitchen-data.json",
   githubToken: ""
 };
