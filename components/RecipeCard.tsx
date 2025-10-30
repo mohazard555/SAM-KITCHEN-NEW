@@ -1,9 +1,6 @@
 import React, { useRef } from 'react';
+import html2canvas from 'html2canvas';
 import type { Recipe } from '../types';
-
-// Declare html2canvas as a global variable to satisfy TypeScript,
-// as the UMD module attaches itself to the window object.
-declare const html2canvas: (element: HTMLElement, options?: object) => Promise<HTMLCanvasElement>;
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -43,9 +40,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe }) => {
   };
 
   const handlePrint = () => {
-    document.body.classList.add('printing-recipe');
     window.print();
-    document.body.classList.remove('printing-recipe');
   };
 
   const handleSaveAsImage = () => {

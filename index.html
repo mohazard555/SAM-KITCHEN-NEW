@@ -14,34 +14,38 @@
         font-family: 'Cairo', sans-serif;
       }
       @media print {
-        body.printing-recipe > *:not(.recipe-print-area) {
+        /* Hide header, footer, and everything in main except the recipe card */
+        body > #root > div > div > header,
+        body > #root > div > div > main > *:not(.recipe-print-area),
+        body > #root > div > div > footer {
           display: none;
         }
+
+        /* Ensure the print area is displayed correctly */
         .recipe-print-area {
           display: block !important;
-          position: absolute;
-          top: 40px;
-          left: 40px;
-          right: 40px;
+          margin: 0 !important;
+          padding: 0 !important;
           box-shadow: none !important;
           border: none !important;
           background-color: #ffffff !important;
           color: #000000 !important;
         }
-        .recipe-print-area h2,
-        .recipe-print-area h3,
-        .recipe-print-area p,
-        .recipe-print-area li,
-        .recipe-print-area strong,
-        .recipe-print-area span {
-          color: #000000 !important;
+
+        /* Reset colors for all elements within the print area for clarity */
+        .recipe-print-area * {
+            color: #000000 !important;
+            background-color: transparent !important;
         }
+        
         .recipe-print-area .text-red-500 {
           color: #991b1b !important;
         }
+        
         .recipe-print-area div[class*="border-slate-"] {
           border-color: #dddddd !important;
         }
+        
         .no-print {
           display: none !important;
         }
@@ -54,7 +58,7 @@
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
-    "html2canvas": "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"
+    "html2canvas": "https://esm.sh/html2canvas@1.4.1"
   }
 }
 </script>
