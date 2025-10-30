@@ -11,7 +11,7 @@ const RECIPE_SCHEMA = {
     cookTime: { type: Type.STRING, description: "مدة الطهي، مثال: '30 دقيقة'." },
     ingredients: {
       type: Type.ARRAY,
-      description: "قائمة بجميع المكونات المطلوبة للوصفة، مع الكميات.",
+      description: "قائمة بجميع المكونات المطلوبة للصفة، مع الكميات.",
       items: { type: Type.STRING }
     },
     instructions: {
@@ -66,12 +66,14 @@ const extractJson = (text: string): string => {
 };
 
 export const generateRecipe = async (formData: FormData): Promise<Recipe> => {
-  // FIX: Per coding guidelines, the API key must be read from process.env.API_KEY.
-  // This also resolves the "Property 'env' does not exist on type 'ImportMeta'" error.
-  const apiKey = process.env.API_KEY;
+  // Access the API key using import.meta.env, which is the standard for modern build tools like Vite used by Vercel.
+  // The environment variable on Vercel MUST be named VITE_API_KEY.
+  // Using `(import.meta as any)` to avoid potential TypeScript errors in some environments.
+  const apiKey = (import.meta as any).env.VITE_API_KEY;
 
   if (!apiKey) {
-    throw new Error("لم يتم تعيين مفتاح الواجهة البرمجية (API Key). يرجى التأكد من تكوين متغير البيئة API_KEY بشكل صحيح.");
+    // Updated error message to guide the user for Vercel deployment.
+    throw new Error("لم يتم العثور على مفتاح الواجهة البرمجية (API Key). يرجى التأكد من تعيين متغير بيئة باسم 'VITE_API_KEY' في إعدادات Vercel.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
