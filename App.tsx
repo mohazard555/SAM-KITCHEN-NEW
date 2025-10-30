@@ -33,55 +33,52 @@ const App: React.FC = () => {
     setIsSubscribed(subscribed);
 
     const loadSettings = async () => {
-        let finalSettings = settings; // Start with default settings
-
-        // 1. Try loading from localStorage
+        // 1. Establish base settings from defaults + localStorage
+        let loadedSettings = { ...settings };
         const savedSettingsJSON = localStorage.getItem('appSettings');
         if (savedSettingsJSON) {
             try {
                 const savedSettings = JSON.parse(savedSettingsJSON);
-                finalSettings = { ...finalSettings, ...savedSettings };
+                loadedSettings = { ...loadedSettings, ...savedSettings };
             } catch (e) {
                 console.error("Failed to parse settings from localStorage", e);
             }
         }
 
-        // 2. If a Gist URL exists, fetch from it and override local settings
-        if (finalSettings.gistUrl) {
+        // 2. If a Gist URL exists, fetch remote settings and merge.
+        if (loadedSettings.gistUrl) {
             try {
-                // Added a cache-busting query parameter to ensure latest settings are always fetched.
-                const gistUrlWithCacheBust = `${finalSettings.gistUrl.split('?')[0]}?cache_bust=${new Date().getTime()}`;
+                const gistUrlWithCacheBust = `${loadedSettings.gistUrl.split('?')[0]}?cache_bust=${new Date().getTime()}`;
                 const response = await fetch(gistUrlWithCacheBust);
                 if (response.ok) {
-                    const gistSettings = await response.json();
+                    const gistContent = await response.json();
                     console.log("Fetched settings from Gist successfully.");
-                    // Gist is source of truth for content, localStorage for sync details.
-                    // We must preserve the sync credentials from the locally loaded settings.
-                    finalSettings = {
-                        // Keep gistUrl and githubToken from what was loaded from localStorage
-                        gistUrl: finalSettings.gistUrl,
-                        githubToken: finalSettings.githubToken,
-                        // Overwrite the rest of the settings with what came from the Gist
-                        ...gistSettings,
+
+                    // MERGE: Apply Gist content, then explicitly restore local sync credentials.
+                    // This protects against the Gist file having old/empty sync fields.
+                    loadedSettings = {
+                        ...loadedSettings, // Start with the full local object
+                        ...gistContent,   // Apply updates from Gist
+                        gistUrl: loadedSettings.gistUrl, // IMPORTANT: Ensure local value is kept
+                        githubToken: loadedSettings.githubToken, // IMPORTANT: Ensure local value is kept
                     };
                 } else {
-                    console.error("Failed to fetch from Gist, using local/default settings.", response.statusText);
+                    console.error("Failed to fetch from Gist, using local settings.", response.statusText);
                 }
             } catch (e) {
-                console.error("Error fetching from Gist, using local/default settings.", e);
+                console.error("Error fetching from Gist, using local settings.", e);
             }
         }
         
-        // 3. Apply the final settings
-        setAppSettings(finalSettings);
-        if (finalSettings.adminUsername) {
-            setAdminUsername(finalSettings.adminUsername);
+        // 3. Apply the final settings to state and save back to localStorage
+        setAppSettings(loadedSettings);
+        if (loadedSettings.adminUsername) {
+            setAdminUsername(loadedSettings.adminUsername);
         }
-        if (finalSettings.adminPassword) {
-            setAdminPassword(finalSettings.adminPassword);
+        if (loadedSettings.adminPassword) {
+            setAdminPassword(loadedSettings.adminPassword);
         }
-        // Update localStorage with the latest merged settings
-        localStorage.setItem('appSettings', JSON.stringify(finalSettings));
+        localStorage.setItem('appSettings', JSON.stringify(loadedSettings));
     };
 
     loadSettings();
