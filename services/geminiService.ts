@@ -66,11 +66,15 @@ const extractJson = (text: string): string => {
 };
 
 export const generateRecipe = async (formData: FormData): Promise<Recipe> => {
-  if (!process.env.API_KEY) {
-    throw new Error("لم يتم تعيين مفتاح الواجهة البرمجية (API Key). يرجى التأكد من تكوين متغيرات البيئة بشكل صحيح.");
+  // FIX: Per coding guidelines, the API key must be read from process.env.API_KEY.
+  // This also resolves the "Property 'env' does not exist on type 'ImportMeta'" error.
+  const apiKey = process.env.API_KEY;
+
+  if (!apiKey) {
+    throw new Error("لم يتم تعيين مفتاح الواجهة البرمجية (API Key). يرجى التأكد من تكوين متغير البيئة API_KEY بشكل صحيح.");
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
   const prompt = buildPrompt(formData);
 
   let rawText = '';
