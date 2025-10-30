@@ -49,7 +49,9 @@ const App: React.FC = () => {
         // 2. If a Gist URL exists, fetch from it and override local settings
         if (finalSettings.gistUrl) {
             try {
-                const response = await fetch(finalSettings.gistUrl);
+                // Added a cache-busting query parameter to ensure latest settings are always fetched.
+                const gistUrlWithCacheBust = `${finalSettings.gistUrl}?cache_bust=${new Date().getTime()}`;
+                const response = await fetch(gistUrlWithCacheBust);
                 if (response.ok) {
                     const gistSettings = await response.json();
                     console.log("Fetched settings from Gist successfully.");
