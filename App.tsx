@@ -33,52 +33,55 @@ const App: React.FC = () => {
     setIsSubscribed(subscribed);
 
     const loadSettings = async () => {
-        // 1. Establish base settings from defaults + localStorage
-        let loadedSettings = { ...settings };
-        const savedSettingsJSON = localStorage.getItem('appSettings');
-        if (savedSettingsJSON) {
-            try {
-                const savedSettings = JSON.parse(savedSettingsJSON);
-                loadedSettings = { ...loadedSettings, ...savedSettings };
-            } catch (e) {
-                console.error("Failed to parse settings from localStorage", e);
-            }
-        }
+      // 1. Load base settings and any locally-saved credentials/sync info.
+      // This ensures the admin user has their gistUrl and token available for saving.
+      let loadedSettings = { ...settings };
+      const savedSettingsJSON = localStorage.getItem('appSettings');
+      if (savedSettingsJSON) {
+          try {
+              const savedSettings = JSON.parse(savedSettingsJSON);
+              loadedSettings = { ...loadedSettings, ...savedSettings };
+          } catch (e) {
+              console.error("Failed to parse settings from localStorage", e);
+          }
+      }
 
-        // 2. If a Gist URL exists, fetch remote settings and merge.
-        if (loadedSettings.gistUrl) {
-            try {
-                const gistUrlWithCacheBust = `${loadedSettings.gistUrl.split('?')[0]}?cache_bust=${new Date().getTime()}`;
-                const response = await fetch(gistUrlWithCacheBust);
-                if (response.ok) {
-                    const gistContent = await response.json();
-                    console.log("Fetched settings from Gist successfully.");
-
-                    // MERGE: Apply Gist content, then explicitly restore local sync credentials.
-                    // This protects against the Gist file having old/empty sync fields.
-                    loadedSettings = {
-                        ...loadedSettings, // Start with the full local object
-                        ...gistContent,   // Apply updates from Gist
-                        gistUrl: loadedSettings.gistUrl, // IMPORTANT: Ensure local value is kept
-                        githubToken: loadedSettings.githubToken, // IMPORTANT: Ensure local value is kept
-                    };
-                } else {
-                    console.error("Failed to fetch from Gist, using local settings.", response.statusText);
-                }
-            } catch (e) {
-                console.error("Error fetching from Gist, using local settings.", e);
-            }
-        }
-        
-        // 3. Apply the final settings to state and save back to localStorage
-        setAppSettings(loadedSettings);
-        if (loadedSettings.adminUsername) {
-            setAdminUsername(loadedSettings.adminUsername);
-        }
-        if (loadedSettings.adminPassword) {
-            setAdminPassword(loadedSettings.adminPassword);
-        }
-        localStorage.setItem('appSettings', JSON.stringify(loadedSettings));
+      // 2. Fetch the latest public settings from our reliable API endpoint.
+      // This bypasses client-side and CDN caching issues with Gist.
+      try {
+          const response = await fetch(`/api/get-settings?_=${new Date().getTime()}`);
+          if (response.ok) {
+              const remoteSettings = await response.json();
+              console.log("Fetched latest settings from /api/get-settings.");
+              // Merge: Start with loaded settings (which has local admin info),
+              // then overwrite with the fresh remote settings.
+              // Then, restore the gistUrl and githubToken from the local copy,
+              // as these are sensitive/admin-specific and should not be in the public Gist.
+              loadedSettings = {
+                  ...loadedSettings,
+                  ...remoteSettings,
+                  gistUrl: loadedSettings.gistUrl, // Keep local value for admin panel
+                  githubToken: loadedSettings.githubToken, // Keep local value for admin panel
+              };
+          } else {
+              const errorData = await response.json().catch(() => ({}));
+              console.error("Failed to fetch from /api/get-settings, using local/default settings.", response.status, errorData.details || '');
+          }
+      } catch (e) {
+          console.error("Error fetching from /api/get-settings, using local/default settings.", e);
+      }
+      
+      // 3. Apply the final, merged settings to the application state.
+      setAppSettings(loadedSettings);
+      if (loadedSettings.adminUsername) {
+          setAdminUsername(loadedSettings.adminUsername);
+      }
+      if (loadedSettings.adminPassword) {
+          setAdminPassword(loadedSettings.adminPassword);
+      }
+      // We don't save back to localStorage here, as we don't want to persist
+      // potentially stale content settings. localStorage is now only for
+      // admin credentials and sync info, which are saved in handleUpdateSettings.
     };
 
     loadSettings();
